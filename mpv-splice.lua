@@ -122,19 +122,17 @@ local opt = require 'mp.options'
 -- Default variables
 
 local SCRIPT_NAME = "mpv-splice"
-local default_tmp_location = "/tmp"
+local default_tmp_location = "~/tmpXXX"
 local default_output_location = mp.get_property("working-directory")
 
 --------------------------------------------------------------------------------
 
 local splice_options = {
-	tmp_location = os.getenv("MPV_SPLICE_TEMP") and os.getenv("MPV_SPLICE_TEMP") or default_tmp_location
+	tmp_location = os.getenv("MPV_SPLICE_TEMP") and os.getenv("MPV_SPLICE_TEMP") or default_tmp_location,
 	output_location = os.getenv("MPV_SPLICE_OUTPUT") and os.getenv("MPV_SPLICE_OUTPUT") or default_output_location
 }
 opt.read_options(splice_options, SCRIPT_NAME)
 
-
-local concat_name = "concat.txt"
 
 local ffmpeg = "ffmpeg -hide_banner -loglevel warning"
 
@@ -147,6 +145,11 @@ local exit_time = 0
 --------------------------------------------------------------------------------
 
 function notify(duration, ...)
+	local text = notify_withour_stdout(duration, ...)
+	msg.info(text)
+end
+
+function notify_withour_stdout(duration, ...)
 	local args = {...}
 	local text = ""
 
@@ -154,9 +157,9 @@ function notify(duration, ...)
 		text = text .. tostring(v)
 	end
 
-	msg.info(text)
 	mp.command(string.format("show-text \"%s\" %d 1",
-		text, duration))
+	text, duration))
+	return text
 end
 
 local function get_time()
@@ -193,14 +196,27 @@ function put_time()
 end
 
 function show_times()
-	notify(2000, "Total cuts: ", #times)
+	local notify_text = "Total cuts: " .. #times .. "\n"
+	local print_limit = 10
 
 	for i, obj in ipairs(times) do
-		msg.info("Slice", i, ": ", obj.t_start, " -> ", obj.t_end)
+		local temp = i .. ": " .. obj.t_start .. " -> " .. obj.t_end
+		msg.info(temp)
+		if i < print_limit then
+			notify_text = notify_text .. temp .. "\n"
+		end
 	end
+
 	if start_time then
-		notify(2000, "Slice ", #times+1, " in progress.")
+		local temp = "" .. #times+1 .. ": " .. start_time .. " -> in progress..."
+		msg.info(temp)
+		notify_text = notify_text .. temp .. "\n"
 	end
+
+	if #times >= print_limit then
+		notify_text = notify_text .. "see rest in stdout.."
+	end
+	notify_withour_stdout(4000, notify_text)
 end
 
 function reset_current_slice()
@@ -218,11 +234,11 @@ function delete_slice()
 		-- Add shortcut keys to the interval {0..9}.
 		for i=0,9,1 do
 			mp.add_key_binding("Alt+" .. i, "num_key_" .. i,
-				function()
-					remove_val = remove_val .. i
-					notify(1000, "Slice to remove: "
-						.. remove_val)
-				end
+			function()
+				remove_val = remove_val .. i
+				notify(1000, "Slice to remove: "
+				.. remove_val)
+			end
 			)
 		end
 	else
@@ -231,10 +247,12 @@ function delete_slice()
 			mp.remove_key_binding("num_key_" .. i)
 		end
 
-		remove_num = tonumber(remove_val)
+		local remove_num = tonumber(remove_val)
 		if #times >= remove_num and remove_num > 0 then
 			table.remove(times, remove_num)
 			notify(2000, "Removed slice ", remove_num)
+		else
+			notify(2000, "Specified slice doesn't exist")
 		end
 
 		remove_val = ""
@@ -260,15 +278,13 @@ function process_video()
 	local alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	local rnd_size = 10
 
-	local pieces = {}
-
 	-- Better seed randomization
 	math.randomseed(os.time())
 	math.random(); math.random(); math.random()
 
 	if times[#times] then
-		local tmp_dir = io.popen(string.format("mktemp -d -t %s",
-			splice_options.tmp_location)):read("*l")
+		local tmp_dir = io.popen(string.format("mktemp -d %s",
+		splice_options.tmp_location)):read("*l")
 		local input_file = mp.get_property("path")
 		local ext = string.gmatch(input_file, ".*%.(.*)$")()
 
@@ -279,9 +295,9 @@ function process_video()
 		end
 
 		local output_file = string.format("%s/%s_%s_cut.%s",
-			splice_options.output_location,
-			mp.get_property("filename/no-ext"),
-			rnd_str, ext)
+		splice_options.output_location,
+		mp.get_property("filename/no-ext"),
+		rnd_str, ext)
 
 		local cat_file_name = string.format("%s/%s", tmp_dir, "concat.txt")
 		local cat_file_ptr = io.open(cat_file_name, "w")
@@ -290,19 +306,19 @@ function process_video()
 
 		for i, obj in ipairs(times) do
 			local path = string.format("%s/%s_%d.%s",
-				tmp_dir, rnd_str, i, ext)
+			tmp_dir, rnd_str, i, ext)
 			cat_file_ptr:write(string.format("file '%s'\n", path))
 			os.execute(string.format("%s -ss %s -i \"%s\" -to %s " ..
-				"-c copy -copyts -avoid_negative_ts make_zero \"%s\"",
-				ffmpeg, obj.t_start, input_file, obj.t_end,
-				path))
+			"-c copy -copyts -avoid_negative_ts make_zero \"%s\"",
+			ffmpeg, obj.t_start, input_file, obj.t_end,
+			path))
 		end
 
 		cat_file_ptr:close()
 
-		cmd = string.format("%s -f concat -safe 0 -i \"%s\" " ..
-			"-c copy \"%s\"",
-			ffmpeg, cat_file_name, output_file)
+		local cmd = string.format("%s -f concat -safe 0 -i \"%s\" " ..
+		"-c copy \"%s\"",
+		ffmpeg, cat_file_name, output_file)
 		os.execute(cmd)
 
 		notify(10000, "File saved as: ", output_file)
@@ -328,3 +344,5 @@ mp.add_key_binding('Alt+p', "show_times", show_times)
 mp.add_key_binding('Alt+c', "process_video", process_video)
 mp.add_key_binding('Alt+r', "reset_current_slice", reset_current_slice)
 mp.add_key_binding('Alt+d', "delete_slice", delete_slice)
+
+-- vim: set tabstop=2 softtabstop=2 shiftwidth=2 noexpandtab :
