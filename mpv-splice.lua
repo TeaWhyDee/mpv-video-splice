@@ -277,7 +277,7 @@ local function process_video()
 		cat_file_ptr:close()
 
 		output_title = output_title:gsub("[/|$()* ]", "_")
-		output_file = string.format("%s/%s_%s_cut." .. splice_options.output_format,
+		local output_file = string.format("%s/%s_%s_cut." .. splice_options.output_format,
 			splice_options.output_location, output_title, rnd_str)
 		output_file = output_file:gsub("\"", "\\\"")
 		output_file = output_file:gsub(" ", "\\ ")
