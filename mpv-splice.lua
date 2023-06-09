@@ -20,7 +20,7 @@ local opt = require 'mp.options'
 local SCRIPT_NAME = "mpv-splice"
 local default_tmp_location = "~/tmpXXX"
 local default_output_location = mp.get_property("working-directory")
-local do_encode = "no"
+do_encode = "no"
 
 --------------------------------------------------------------------------------
 
@@ -114,40 +114,29 @@ local function put_time()
 	notify(2000, message, ": ", time)
 end
 
-local function toggle_do_encode()
-	if (do_encode == "yes") then
-		do_encode = "no"
-		notify(500, "Reencode: False")
+local function toggle_option(option_name, text)
+	if (_G[option_name] == "yes") then
+		_G[option_name] = "no"
+		notify(500, text .. ": False")
 	else
-		do_encode = "yes"
-		notify(500, "Reencode: True")
+		_G[option_name] = "yes"
+		notify(500, text .. ": True")
 	end
+end
+
+local function toggle_do_encode()
+	toggle_option("do_encode", "Encode")
 end
 
 local function toggle_do_upload()
-	if (do_upload == "yes") then
-		do_upload = "no"
-		notify(500, "Upload: False")
-	else
-		do_upload = "yes"
-		notify(500, "Upload: True")
-	end
+	toggle_option("do_upload", "Upload")
 end
 
 local function show_times()
-	local notify_text = "Reencode: "
-	if (do_encode == "yes") then
-		notify_text = notify_text .. "True"
-	else
-		notify_text = notify_text .. "False"
-	end
-	notify_text = notify_text .. "; Upload: "
-	if (do_upload == "yes") then
-		notify_text = notify_text .. "True\n"
-	else
-		notify_text = notify_text .. "False\n"
-	end
-	notify_text = notify_text .. "Total cuts: " .. #times .. "\n"
+	print("DO ENCODE" .. tostring(do_encode))
+	local notify_text = "Reencode: " .. ((do_encode == "yes") and "True" or "False")
+	notify_text = notify_text .. " | Upload: " .. ((do_upload == "yes") and "True" or "False")
+	notify_text = notify_text .. "\nTotal cuts: " .. #times .. "\n"
 	local print_limit = 10
 
 	for i, obj in ipairs(times) do
@@ -224,6 +213,25 @@ local function prevent_quit(name)
 	end
 end
 
+local function get_random(rnd_size)
+	local rnd_str = ""
+
+	-- Better seed randomization
+	math.randomseed(os.time())
+	math.random()
+	math.random()
+	math.random()
+
+	local alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	for i = 1, rnd_size, 1 do
+		local rnd_index = math.floor(math.random() * #alphabet + 0.5)
+		rnd_str = rnd_str .. alphabet:sub(rnd_index, rnd_index)
+	end
+
+	return rnd_str
+end
+
 local function write_to_cat_file(cat_file_ptr, path)
 	cat_file_ptr:write(string.format("file '%s'\n", path))
 end
@@ -231,10 +239,7 @@ end
 local function process_video()
 	local alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	local rnd_size = 10
-
-	-- Better seed randomization
-	math.randomseed(os.time())
-	math.random(); math.random(); math.random()
+	local rnd_str = get_random(rnd_size)
 
 	if not times[#times] then
 		return
@@ -243,12 +248,6 @@ local function process_video()
 	splice_options.tmp_location)):read("*l")
 	local input_file = mp.get_property("path")
 	-- local ext = string.gmatch(input_file, ".*%.(.*)$")()
-
-	local rnd_str = ""
-	for i=1,rnd_size,1 do
-		local rnd_index = math.floor(math.random() * #alphabet + 0.5)
-		rnd_str = rnd_str .. alphabet:sub(rnd_index, rnd_index)
-	end
 
 	local output_title = mp.get_property("filename/no-ext")
 
