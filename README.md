@@ -1,24 +1,39 @@
-# mpv-video-splice
-An mpv player script that helps you create a video out of 
-cuts made in the current playing video.
+This is a fork of mpv-video-splice with an ability to edit online videos from platforms
+that youtube-dl (or yt-dlp) support and other improvements and features.
+
+# mpv-yt-splice
+An mpv player script that allows you create a video out of cuts made in the
+current playing video (local or online). 
 
 **Requires: ffmpeg**
+**Requires: yt-dlp or youtube-dl** (optional)
+
 
 ## Description
-This script provides the hability to create video slices by grabbing two
+This script provides the ability to create video slices by grabbing two
 timestamps, which generate a slice from timestamp A to timestamp B,
 e.g.:
 	
-	-> Slice 1: 00:10:34.25 -> 00:15:00.00;
-	-> Slice 2: 00:23:00.84 -> 00:24:10.00;
+	-> 1: 00:10:34.25 -> 00:15:00.00
+	-> 2: 00:23:00.84 -> 00:24:10.00
 	...
-	-> Slice n: 01:44:22.47 -> 01:56:00.00;
+	-> n: 01:44:22.47 -> in progress..
 	
 
 Then, all the slices from 1 to n are joined together, creating a new
 video.
 
-**The output file will appear at the directory that the mpv command was ran.**
+**The output file will appear at the directory that the mpv command was ran
+or at the directory specified in output_location option.**
+
+If **re-encoding** is enabled, the video will be encoded.
+Only applies to local files. By default, the script copies the video codec
+(do_encode == "no") which makes cutting near instant but imprecise, because the
+cut has to start at a keyframe. Toggling re-encoding slows down the compilation
+process but allows for frame-perfect cuts.
+
+If **uploading** is enabled, the video will be saved and uploaded to the configured
+destination and the link to the uploaded video copied to clipboard.
 
 **Note:** This script prevents the mpv player from closing when the video ends,
 so that the slices don't get lost. Keep this in mind if there's the option
@@ -31,17 +46,13 @@ can be seen more clearly.
 ## Usage
 This section correspond to the shortcut keys provided by this script.
 
-### Alt + e (Toggle encoding)
-Only affects local files, affects the speed and accuracy of cuts.
-By default, the script copies the video codec (encoding == off)
-which makes cutting near instant but is also imprecise,
-because the cut has to start at a keyframe.
-You might get a few seconds extra at the beginning of the cut.
-Toggling this off will slow down the process tremendously
-but will allow for perfectly precise cuts.
+### Alt + e (Toggle re-encoding)
+For local videos, toggling re-encoding on will slow down the compilation
+process and allows for for perfectly precise cuts.
 
 ### Alt + u (Toggle upload)
 Toggle uploading the edited video to configured destination.
+The default in streamable, supply your credentials in the config for it to work.
 
 ### Alt + t (Grab timestamp)
 In the video screen, press `Alt + T` to grab the first timestamp and then
@@ -116,6 +127,9 @@ e.g.: `export MPV_SPLICE_OUTPUT="$HOME/output_location"`
 **Make sure the directories set in the variables really exist, or else the
 script might fail.**
 
+## Configuration
+The script can be configured using the mpv-splice.conf file.
+See the file comments for explanation of the configuration options.
 
 
 # Installation
