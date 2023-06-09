@@ -114,6 +114,24 @@ local function put_time()
 	notify(2000, message, ": ", time)
 end
 
+function time_diff(start_time, end_time)
+	s1 = {start_time:match("(%d+):(%d+):(%d+)%.(%d+)")}
+	s2 = {end_time:match("(%d+):(%d+):(%d+)%.(%d+)")}
+
+	-- Convert to ms for easier calculation
+	local time1_ms = s1[4] + s1[3] * 1000 + s1[2] * 60 * 1000 + s1[1] * 60 * 60 * 1000
+	local time2_ms = s2[4] + s2[3] * 1000 + s2[2] * 60 * 1000 + s2[1] * 60 * 60 * 1000
+	local diff_ms = time2_ms - time1_ms
+
+	-- Convert the difference back to hours, minutes, seconds, and milliseconds
+	local diff_h = math.floor(diff_ms / (60 * 60 * 1000))
+	local diff_m = math.floor((diff_ms % (60 * 60 * 1000)) / (60 * 1000))
+	local diff_s = math.floor((diff_ms % (60 * 1000)) / 1000)
+	local diff_ms_str = string.format("%03d", diff_ms % 1000)
+
+	return string.format("%02d:%02d:%02d.%s", diff_h, diff_m, diff_s, diff_ms_str)
+end
+
 local function toggle_option(option_name, text)
 	if (_G[option_name] == "yes") then
 		_G[option_name] = "no"
@@ -140,7 +158,9 @@ local function show_times()
 	local print_limit = 10
 
 	for i, obj in ipairs(times) do
-		local temp = i .. ": " .. obj.t_start .. " -> " .. obj.t_end
+		diff = time_diff(obj.t_start, obj.t_end)
+
+		local temp = i .. ": " .. obj.t_start .. " -> " .. obj.t_end .. " (" .. diff .. ")"
 		msg.info(temp)
 		if i < print_limit then
 			notify_text = notify_text .. temp .. "\n"
